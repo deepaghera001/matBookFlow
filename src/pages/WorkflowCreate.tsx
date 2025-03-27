@@ -16,6 +16,8 @@ import { v4 as uuidv4 } from 'uuid';
 import NodeConfigurationModal from '../components/NodeConfigurationModal';
 import ApiNode from '../components/nodes/ApiNode';
 import EmailNode from '../components/nodes/EmailNode';
+import EndNode from '../components/nodes/initialNodes/EndNode';
+import StartNode from '../components/nodes/initialNodes/StartNode';
 import TextNode from '../components/nodes/TextNode';
 import NodeSelectionModal from '../components/NodeSelectionModal';
 import SaveOption from '../components/ui/SaveOption';
@@ -39,6 +41,8 @@ const nodeTypes = {
   email: EmailNode,
   api: ApiNode,
   text: TextNode,
+  start: StartNode,
+  end: EndNode,
 };
 
 interface PlusIconEdgeProps extends EdgeProps {
@@ -96,13 +100,25 @@ const edgeTypes = {
   plusicon: PlusIconEdge,
 };
 
+// Update onDelete signature: it now receives (nodeId, event)
 interface WorkflowNode extends Node {
-  data: EmailNodeData | ApiNodeData | TextNodeData | { label?: string };
+  data: EmailNodeData | ApiNodeData | TextNodeData | { label?: string; onDelete?: (nodeId: string, event: React.MouseEvent) => void };
 }
 
+// Fixed start/end nodes (without delete)
 const initialNodes: WorkflowNode[] = [
-  { id: 'start', type: 'input', data: { label: 'Start' }, position: { x: 50, y: 50 }, style: { borderRadius: '50%', width: 50, height: 50, display: 'flex', justifyContent: 'center', alignItems: 'center' } },
-  { id: 'end', type: 'output', data: { label: 'End' }, position: { x: 500, y: 200 }, style: { borderRadius: '50%', width: 50, height: 50, display: 'flex', justifyContent: 'center', alignItems: 'center' } },
+  {
+    id: 'start',
+    type: 'start',
+    data: { label: 'Start' },
+    position: { x: 300, y: 50 },
+  },
+  {
+    id: 'end',
+    type: 'end',
+    data: { label: 'End' },
+    position: { x: 300, y: 600 },
+  },
 ];
 
 const initialEdges: Edge[] = [
@@ -119,6 +135,7 @@ const WorkflowCreate: React.FC = () => {
   const [isNodeConfigModalOpen, setIsNodeConfigModalOpen] = useState(false);
   const [selectedNodeConfig, setSelectedNodeConfig] = useState<WorkflowNode | null>(null);
 
+  // Connect new edges
   const onConnect: OnConnect = useCallback((params) => {
     setEdges((eds) => addEdge({ ...params, type: 'plusicon' }, eds));
   }, [setEdges]);
@@ -138,37 +155,104 @@ const WorkflowCreate: React.FC = () => {
 
       if (sourceNode && targetNode) {
         const newId = uuidv4();
+        // Calculate midpoint between source and target
         const newPosition: XYPosition = {
           x: (sourceNode.position.x + targetNode.position.x) / 2,
           y: (sourceNode.position.y + targetNode.position.y) / 2,
         };
 
+        // Create new node with an onDelete callback
         const newNode: WorkflowNode = {
           id: newId,
           type: type,
           position: newPosition,
-          data: {}, // Initial empty data, will be configured
+          data: { 
+            label: `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
+            onDelete: (nodeId: string, event: React.MouseEvent) => handleDeleteNodeById(nodeId)
+          },
         };
 
-        setNodes((nds) => [...nds, newNode]);
+        // Adjust positions for nodes below the new node
+        const verticalOffset = 100;
+        const updatedNodes = nodes.map((node) => {
+          if (node.id !== 'start' && node.id !== 'end' && node.position.y > newPosition.y) {
+            return { ...node, position: { ...node.position, y: node.position.y + verticalOffset } };
+          }
+          return node;
+        });
+
+        setNodes([...updatedNodes, newNode]);
 
         // Replace the existing edge with two new edges connecting the new node
         setEdges((eds) =>
           eds
             .filter((e) => e.id !== selectedEdge.id)
             .concat(
-              { id: `e-${selectedEdge.source}-${newId}`, source: selectedEdge.source, target: newId, type: 'plusicon' },
-              { id: `e-${newId}-${selectedEdge.target}`, source: newId, target: selectedEdge.target, type: 'plusicon' }
+              {
+                id: `e-${selectedEdge.source}-${newId}`,
+                source: selectedEdge.source,
+                target: newId,
+                type: 'plusicon'
+              },
+              {
+                id: `e-${newId}-${selectedEdge.target}`,
+                source: newId,
+                target: selectedEdge.target,
+                type: 'plusicon'
+              }
             )
         );
 
-        // Open configuration modal for the newly added node
+        // Optionally open configuration modal for the new node
         setSelectedNodeConfig(newNode);
         setIsNodeConfigModalOpen(true);
-        setSelectedEdge(null); // Reset selected edge
+        setSelectedEdge(null);
       }
     }
-  }, [nodes, setNodes, setEdges, selectedEdge, setIsNodeSelectionModalOpen]);
+  }, [nodes, setNodes, setEdges, selectedEdge]);
+
+  // Delete node by id with edge reconnection if applicable
+  const handleDeleteNodeById = useCallback((nodeId: string) => {
+    if (nodeId === 'start' || nodeId === 'end') return; // Do not delete fixed nodes
+
+    // Capture current state
+    setNodes((nds) => {
+      const nodeToDelete = nds.find((node) => node.id === nodeId);
+      if (!nodeToDelete) return nds;
+      const deletedNodeY = nodeToDelete.position.y;
+      const verticalOffset = 100;
+      // Remove the node and adjust positions for nodes below it
+      const filteredNodes = nds.filter((node) => node.id !== nodeId);
+      return filteredNodes.map((node) => {
+        if (node.position.y > deletedNodeY) {
+          return { ...node, position: { ...node.position, y: node.position.y - verticalOffset } };
+        }
+        return node;
+      });
+    });
+
+    // Identify incoming and outgoing edges for reconnection
+    setEdges((eds) => {
+      const incomingEdges = eds.filter((edge) => edge.target === nodeId);
+      const outgoingEdges = eds.filter((edge) => edge.source === nodeId);
+      // Remove all edges connected to the deleted node
+      let updatedEdges = eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId);
+
+      // If exactly one incoming and one outgoing edge exist, reconnect parent and child
+      if (incomingEdges.length === 1 && outgoingEdges.length === 1) {
+        const parentEdge = incomingEdges[0];
+        const childEdge = outgoingEdges[0];
+        const newEdge = {
+          id: `e-${parentEdge.source}-${childEdge.target}`,
+          source: parentEdge.source,
+          target: childEdge.target,
+          type: 'plusicon'
+        };
+        updatedEdges = [...updatedEdges, newEdge];
+      }
+      return updatedEdges;
+    });
+  }, [setNodes, setEdges]);
 
   const handleCloseNodeSelectionModal = () => {
     setIsNodeSelectionModalOpen(false);
@@ -184,18 +268,10 @@ const WorkflowCreate: React.FC = () => {
     (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       const { name, value } = event.target;
       setSelectedNodeConfig((prevConfig) =>
-        prevConfig
-          ? {
-            ...prevConfig,
-            data: {
-              ...prevConfig.data,
-              [name]: value,
-            },
-          }
-          : null
+        prevConfig ? { ...prevConfig, data: { ...prevConfig.data, [name]: value } } : null
       );
     },
-    [setSelectedNodeConfig]
+    []
   );
 
   const handleSaveNodeConfig = useCallback(() => {
@@ -206,12 +282,12 @@ const WorkflowCreate: React.FC = () => {
     );
     setIsNodeConfigModalOpen(false);
     setSelectedNodeConfig(null);
-  }, [setNodes, selectedNodeConfig, setIsNodeConfigModalOpen]);
+  }, [setNodes, selectedNodeConfig]);
 
   const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
     setSelectedNodeConfig(node as WorkflowNode);
     setIsNodeConfigModalOpen(true);
-  }, [setIsNodeConfigModalOpen, setSelectedNodeConfig]);
+  }, []);
 
   return (
     <div style={{ width: '100%', height: '730px' }} ref={reactFlowWrapper}>
@@ -228,14 +304,21 @@ const WorkflowCreate: React.FC = () => {
         fitView
         attributionPosition="top-right"
       >
-        <SaveOption
-          onSave={() => console.log("Saving...")}
-          onBack={() => console.log("Going back...")}
-        />
+        {/* SaveOption handles saving */}
+        <SaveOption nodes={nodes} edges={edges} onBack={() => console.log("Going back...")} />
         <Controls />
         <Background variant="dots" gap={12} size={1} />
         <defs>
-          <marker id="arrow" viewBox="0 -5 10 10" refX={5} refY={0} orient="auto" markerWidth={6} markerHeight={6} fill="#888">
+          <marker 
+            id="arrow" 
+            viewBox="0 -5 10 10" 
+            refX={5} 
+            refY={0} 
+            orient="auto" 
+            markerWidth={6} 
+            markerHeight={6} 
+            fill="#888"
+          >
             <path d="M0,-5 L10,0 L0,5" />
           </marker>
         </defs>
@@ -251,8 +334,8 @@ const WorkflowCreate: React.FC = () => {
         isOpen={isNodeConfigModalOpen}
         onClose={handleCloseNodeConfigModal}
         onSave={handleSaveNodeConfig}
-        nodeConfig={selectedNodeConfig}
         onConfigChange={handleNodeConfigChange}
+        nodeConfig={selectedNodeConfig}
       />
     </div>
   );
