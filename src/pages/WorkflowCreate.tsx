@@ -1,154 +1,261 @@
-import React, { useState, useCallback } from 'react';
-import ReactFlow, { 
-  addEdge, 
-  Background, 
+import React, { useCallback, useRef, useState } from 'react';
+import ReactFlow, {
+  addEdge,
+  Background,
   Controls,
-  Connection,
   Edge,
+  EdgeProps,
   Node,
-  useNodesState,
+  OnConnect,
   useEdgesState,
-  MarkerType
+  useNodesState,
+  XYPosition
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Plus, Mail, Globe, TextIcon } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
+import NodeConfigurationModal from '../components/NodeConfigurationModal';
+import ApiNode from '../components/nodes/ApiNode';
+import EmailNode from '../components/nodes/EmailNode';
+import TextNode from '../components/nodes/TextNode';
+import NodeSelectionModal from '../components/NodeSelectionModal';
+import SaveOption from '../components/ui/SaveOption';
+
+interface EmailNodeData {
+  email?: string;
+}
+
+interface ApiNodeData {
+  url?: string;
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+}
+
+interface TextNodeData {
+  text?: string;
+}
+
+type NodeType = 'email' | 'api' | 'text';
 
 const nodeTypes = {
-  start: ({ data }) => (
-    <div className="px-4 py-2 shadow-md rounded-full bg-green-500 text-white">
-      {data.label}
-    </div>
-  ),
-  end: ({ data }) => (
-    <div className="px-4 py-2 shadow-md rounded-full bg-red-500 text-white">
-      {data.label}
-    </div>
-  ),
-  email: ({ data }) => (
-    <div className="px-4 py-2 shadow-md rounded-md bg-blue-500 text-white flex items-center gap-2">
-      <Mail size={16} />
-      {data.label}
-    </div>
-  ),
-  input: ({ data }) => (
-    <div className="px-4 py-2 shadow-md rounded-md bg-purple-500 text-white flex items-center gap-2">
-      <TextIcon size={16} />
-      {data.label}
-    </div>
-  ),
-  api: ({ data }) => (
-    <div className="px-4 py-2 shadow-md rounded-md bg-orange-500 text-white flex items-center gap-2">
-      <Globe size={16} />
-      {data.label}
-    </div>
-  ),
+  email: EmailNode,
+  api: ApiNode,
+  text: TextNode,
 };
 
-const initialNodes: Node[] = [
-  {
-    id: 'start',
-    type: 'start',
-    position: { x: 250, y: 5 },
-    data: { label: 'Start' },
-  },
-];
+interface PlusIconEdgeProps extends EdgeProps {
+  onClick?: (event: React.MouseEvent, edge: Edge) => void;
+}
 
-function WorkflowCreate() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [workflowName, setWorkflowName] = useState('');
-  const [workflowDescription, setWorkflowDescription] = useState('');
-
-  const onConnect = useCallback(
-    (params: Connection | Edge) => setEdges((eds) => addEdge({ ...params, markerEnd: { type: MarkerType.ArrowClosed } }, eds)),
-    [setEdges]
-  );
-
-  const addNode = (type: string) => {
-    const newNode: Node = {
-      id: `${type}-${Date.now()}`,
-      type,
-      position: { x: Math.random() * 500, y: Math.random() * 500 },
-      data: { label: type.charAt(0).toUpperCase() + type.slice(1) },
-    };
-    setNodes((nds) => [...nds, newNode]);
-  };
-
-  const handleSave = async () => {
-    // TODO: Implement save functionality with Firebase
-    console.log('Saving workflow:', { workflowName, workflowDescription, nodes, edges });
-  };
+const PlusIconEdge: React.FC<PlusIconEdgeProps> = ({
+  id,
+  source,
+  target,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  onClick,
+}) => {
+  const [x, y] = [(sourceX + targetX) / 2, (sourceY + targetY) / 2];
 
   return (
-    <div className="h-screen flex flex-col">
-      <div className="p-4 border-b">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold mb-4">Create Workflow</h1>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <input
-              type="text"
-              placeholder="Workflow Name"
-              className="border p-2 rounded"
-              value={workflowName}
-              onChange={(e) => setWorkflowName(e.target.value)}
-            />
-            <input
-              type="text"
-              placeholder="Description"
-              className="border p-2 rounded"
-              value={workflowDescription}
-              onChange={(e) => setWorkflowDescription(e.target.value)}
-            />
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => addNode('email')}
-              className="flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              <Mail size={16} /> Email
-            </button>
-            <button
-              onClick={() => addNode('input')}
-              className="flex items-center gap-2 px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
-            >
-              <TextIcon size={16} /> Input
-            </button>
-            <button
-              onClick={() => addNode('api')}
-              className="flex items-center gap-2 px-3 py-2 bg-orange-500 text-white rounded hover:bg-orange-600"
-            >
-              <Globe size={16} /> API
-            </button>
-            <button
-              onClick={() => addNode('end')}
-              className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-            >
-              End
-            </button>
-            <button
-              onClick={handleSave}
-              className="ml-auto px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-            >
-              Save Workflow
-            </button>
-          </div>
-        </div>
-      </div>
-      <div className="flex-1">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          nodeTypes={nodeTypes}
+    <>
+      <path
+        id={id}
+        className="react-flow__edge-path"
+        d={`M${sourceX},${sourceY} L${targetX},${targetY}`}
+        markerEnd={`url(#arrow)`}
+      />
+      <foreignObject x={x - 12} y={y - 12} width={24} height={24} className="edgebutton-foreignobject">
+        <button
+          className="edgebutton"
+          onClick={(event) => onClick?.(event, { id, source, target })}
+          style={{
+            borderRadius: '50%',
+            width: '24px',
+            height: '24px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            border: 'none',
+            backgroundColor: '#fff',
+            cursor: 'pointer',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            color: '#555',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+          }}
         >
-          <Background />
-          <Controls />
-        </ReactFlow>
-      </div>
+          +
+        </button>
+      </foreignObject>
+    </>
+  );
+};
+
+const edgeTypes = {
+  plusicon: PlusIconEdge,
+};
+
+interface WorkflowNode extends Node {
+  data: EmailNodeData | ApiNodeData | TextNodeData | { label?: string };
+}
+
+const initialNodes: WorkflowNode[] = [
+  { id: 'start', type: 'input', data: { label: 'Start' }, position: { x: 50, y: 50 }, style: { borderRadius: '50%', width: 50, height: 50, display: 'flex', justifyContent: 'center', alignItems: 'center' } },
+  { id: 'end', type: 'output', data: { label: 'End' }, position: { x: 500, y: 200 }, style: { borderRadius: '50%', width: 50, height: 50, display: 'flex', justifyContent: 'center', alignItems: 'center' } },
+];
+
+const initialEdges: Edge[] = [
+  { id: 'e1-2', source: 'start', target: 'end', type: 'plusicon' },
+];
+
+const WorkflowCreate: React.FC = () => {
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
+  const [isNodeSelectionModalOpen, setIsNodeSelectionModalOpen] = useState(false);
+  const [newNodeType, setNewNodeType] = useState<NodeType | null>(null);
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const [isNodeConfigModalOpen, setIsNodeConfigModalOpen] = useState(false);
+  const [selectedNodeConfig, setSelectedNodeConfig] = useState<WorkflowNode | null>(null);
+
+  const onConnect: OnConnect = useCallback((params) => {
+    setEdges((eds) => addEdge({ ...params, type: 'plusicon' }, eds));
+  }, [setEdges]);
+
+  const handleEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
+    setSelectedEdge(edge);
+    setIsNodeSelectionModalOpen(true);
+  }, []);
+
+  const handleNodeSelect = useCallback((type: NodeType) => {
+    setNewNodeType(type);
+    setIsNodeSelectionModalOpen(false);
+
+    if (selectedEdge) {
+      const sourceNode = nodes.find((node) => node.id === selectedEdge.source);
+      const targetNode = nodes.find((node) => node.id === selectedEdge.target);
+
+      if (sourceNode && targetNode) {
+        const newId = uuidv4();
+        const newPosition: XYPosition = {
+          x: (sourceNode.position.x + targetNode.position.x) / 2,
+          y: (sourceNode.position.y + targetNode.position.y) / 2,
+        };
+
+        const newNode: WorkflowNode = {
+          id: newId,
+          type: type,
+          position: newPosition,
+          data: {}, // Initial empty data, will be configured
+        };
+
+        setNodes((nds) => [...nds, newNode]);
+
+        // Replace the existing edge with two new edges connecting the new node
+        setEdges((eds) =>
+          eds
+            .filter((e) => e.id !== selectedEdge.id)
+            .concat(
+              { id: `e-${selectedEdge.source}-${newId}`, source: selectedEdge.source, target: newId, type: 'plusicon' },
+              { id: `e-${newId}-${selectedEdge.target}`, source: newId, target: selectedEdge.target, type: 'plusicon' }
+            )
+        );
+
+        // Open configuration modal for the newly added node
+        setSelectedNodeConfig(newNode);
+        setIsNodeConfigModalOpen(true);
+        setSelectedEdge(null); // Reset selected edge
+      }
+    }
+  }, [nodes, setNodes, setEdges, selectedEdge, setIsNodeSelectionModalOpen]);
+
+  const handleCloseNodeSelectionModal = () => {
+    setIsNodeSelectionModalOpen(false);
+    setSelectedEdge(null);
+  };
+
+  const handleCloseNodeConfigModal = () => {
+    setIsNodeConfigModalOpen(false);
+    setSelectedNodeConfig(null);
+  };
+
+  const handleNodeConfigChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+      const { name, value } = event.target;
+      setSelectedNodeConfig((prevConfig) =>
+        prevConfig
+          ? {
+            ...prevConfig,
+            data: {
+              ...prevConfig.data,
+              [name]: value,
+            },
+          }
+          : null
+      );
+    },
+    [setSelectedNodeConfig]
+  );
+
+  const handleSaveNodeConfig = useCallback(() => {
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === selectedNodeConfig?.id ? { ...node, data: selectedNodeConfig.data } : node
+      )
+    );
+    setIsNodeConfigModalOpen(false);
+    setSelectedNodeConfig(null);
+  }, [setNodes, selectedNodeConfig, setIsNodeConfigModalOpen]);
+
+  const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
+    setSelectedNodeConfig(node as WorkflowNode);
+    setIsNodeConfigModalOpen(true);
+  }, [setIsNodeConfigModalOpen, setSelectedNodeConfig]);
+
+  return (
+    <div style={{ width: '100%', height: '730px' }} ref={reactFlowWrapper}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        edgeTypes={edgeTypes}
+        nodeTypes={nodeTypes}
+        onEdgeClick={handleEdgeClick}
+        onNodeDoubleClick={onNodeDoubleClick}
+        fitView
+        attributionPosition="top-right"
+      >
+        <SaveOption
+          onSave={() => console.log("Saving...")}
+          onBack={() => console.log("Going back...")}
+        />
+        <Controls />
+        <Background variant="dots" gap={12} size={1} />
+        <defs>
+          <marker id="arrow" viewBox="0 -5 10 10" refX={5} refY={0} orient="auto" markerWidth={6} markerHeight={6} fill="#888">
+            <path d="M0,-5 L10,0 L0,5" />
+          </marker>
+        </defs>
+      </ReactFlow>
+
+      <NodeSelectionModal
+        isOpen={isNodeSelectionModalOpen}
+        onClose={handleCloseNodeSelectionModal}
+        onSelect={handleNodeSelect}
+      />
+
+      <NodeConfigurationModal
+        isOpen={isNodeConfigModalOpen}
+        onClose={handleCloseNodeConfigModal}
+        onSave={handleSaveNodeConfig}
+        nodeConfig={selectedNodeConfig}
+        onConfigChange={handleNodeConfigChange}
+      />
     </div>
   );
-}
+};
 
 export default WorkflowCreate;
