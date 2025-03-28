@@ -1,14 +1,6 @@
 import React from 'react';
 
-interface NodeConfigurationModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: () => void;
-  nodeConfig: any; // Define a more specific type if possible
-  onConfigChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
-}
-
-const NodeConfigurationModal: React.FC<NodeConfigurationModalProps> = ({
+const NodeConfigurationModal = ({
   isOpen,
   onClose,
   onSave,
@@ -20,73 +12,99 @@ const NodeConfigurationModal: React.FC<NodeConfigurationModalProps> = ({
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        backgroundColor: 'white',
-        padding: '20px',
-        borderRadius: '8px',
-        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-        zIndex: 1000,
-      }}
-    >
-      <h3>Configure {nodeConfig.type?.toUpperCase()} Node</h3>
-      {nodeConfig.type === 'email' && (
-        <div>
-          <label htmlFor="email">Email Address:</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            value={nodeConfig.data?.email || ''}
-            onChange={onConfigChange}
-            style={{ width: '100%', padding: '8px', margin: '5px 0', boxSizing: 'border-box' }}
-          />
-        </div>
-      )}
-      {nodeConfig.type === 'api' && (
-        <div>
-          <label htmlFor="url">API URL:</label>
-          <input
-            type="text"
-            id="url"
-            name="url"
-            value={nodeConfig.data?.url || ''}
-            onChange={onConfigChange}
-            style={{ width: '100%', padding: '8px', margin: '5px 0', boxSizing: 'border-box' }}
-          />
-          <label htmlFor="method">Request Type:</label>
-          <select
-            id="method"
-            name="method"
-            value={nodeConfig.data?.method || 'GET'}
-            onChange={onConfigChange}
-            style={{ width: '100%', padding: '8px', margin: '5px 0', boxSizing: 'border-box' }}
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+      <div className="bg-white rounded-xl shadow-lg p-6 w-96 border border-gray-300">
+        <h3 className="text-lg font-semibold mb-4 text-gray-700">
+          Configure {nodeConfig.type?.toUpperCase()} Node
+        </h3>
+        {nodeConfig.type === 'email' && (
+          <div className="mb-4">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-600">
+              Email Address
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={nodeConfig.data?.email || ''}
+              onChange={onConfigChange}
+              className="w-full border border-gray-300 rounded-lg p-2 mt-1 focus:ring focus:ring-blue-200 focus:outline-none"
+              placeholder="Type here..."
+            />
+          </div>
+        )}
+        {nodeConfig.type === 'api' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-600">Method</label>
+            <select
+              name="method"
+              value={nodeConfig.data?.method || 'GET'}
+              onChange={onConfigChange}
+              className="w-full border border-gray-300 rounded-lg p-2 mt-1 focus:ring focus:ring-blue-200 focus:outline-none"
+            >
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="PUT">PUT</option>
+              <option value="DELETE">DELETE</option>
+            </select>
+            <label className="block text-sm font-medium text-gray-600 mt-4">URL</label>
+            <input
+              type="text"
+              name="url"
+              value={nodeConfig.data?.url || ''}
+              onChange={onConfigChange}
+              className="w-full border border-gray-300 rounded-lg p-2 mt-1 focus:ring focus:ring-blue-200 focus:outline-none"
+              placeholder="Type here..."
+            />
+            <label className="block text-sm font-medium text-gray-600 mt-4">Headers</label>
+            <input
+              type="text"
+              name="headers"
+              value={nodeConfig.data?.headers || ''}
+              onChange={onConfigChange}
+              className="w-full border border-gray-300 rounded-lg p-2 mt-1 focus:ring focus:ring-blue-200 focus:outline-none"
+              placeholder="Header Name"
+            />
+            <label className="block text-sm font-medium text-gray-600 mt-4">Body</label>
+            <textarea
+              name="body"
+              value={nodeConfig.data?.body || ''}
+              onChange={onConfigChange}
+              className="w-full border border-gray-300 rounded-lg p-2 mt-1 focus:ring focus:ring-blue-200 focus:outline-none"
+              placeholder="Enter Descriptions..."
+            />
+          </div>
+        )}
+        {nodeConfig.type === 'text' && (
+          <div className="mb-4">
+            <label htmlFor="text" className="block text-sm font-medium text-gray-600">
+              Message
+            </label>
+            <textarea
+              id="text"
+              name="text"
+              value={nodeConfig.data?.text || ''}
+              onChange={onConfigChange}
+              className="w-full border border-gray-300 rounded-lg p-2 mt-1 focus:ring focus:ring-blue-200 focus:outline-none"
+              placeholder="Enter..."
+            />
+          </div>
+        )}
+        <div className="flex justify-end mt-6 space-x-2">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-300 rounded-lg text-gray-700 hover:bg-gray-400"
           >
-            <option value="GET">GET</option>
-            <option value="POST">POST</option>
-            <option value="PUT">PUT</option>
-            <option value="DELETE">DELETE</option>
-          </select>
+            Cancel
+          </button>
+          <button
+            onClick={onSave}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Save
+          </button>
         </div>
-      )}
-      {nodeConfig.type === 'text' && (
-        <div>
-          <label htmlFor="text">Text:</label>
-          <textarea
-            id="text"
-            name="text"
-            value={nodeConfig.data?.text || ''}
-            onChange={onConfigChange}
-            style={{ width: '100%', padding: '8px', margin: '5px 0', boxSizing: 'border-box' }}
-          />
-        </div>
-      )}
-      <button onClick={onSave} style={{ margin: '5px', padding: '8px', cursor: 'pointer' }}>Save</button>
-      <button onClick={onClose} style={{ margin: '5px', padding: '8px', cursor: 'pointer' }}>Cancel</button>
+      </div>
     </div>
   );
 };
