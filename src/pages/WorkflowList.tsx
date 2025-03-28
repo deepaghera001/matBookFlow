@@ -16,8 +16,6 @@ import { useAuthStore } from '../store/authStore';
 import { IWorkflow } from '../types/workflow';
 import { Star, MoreVertical, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { WorkflowExecutionService } from '../services/workflowExecutionService';
-
-// -- IMPORTANT: Import the updated timeline component
 import ExecutionHistoryTimeline from '../components/ExecutionHistoryTimeline';
 
 function WorkflowList() {
@@ -49,7 +47,6 @@ function WorkflowList() {
       if (!workflowDoc.exists()) {
         throw new Error('Workflow not found');
       }
-
       const workflowData = workflowDoc.data();
       const executionService = new WorkflowExecutionService();
       const results = await executionService.executeWorkflow(
@@ -164,8 +161,7 @@ function WorkflowList() {
                     setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
                   }}
                 >
-                  Workflow Name{' '}
-                  {sortField === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  Workflow Name {sortField === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th className="px-6 py-4 font-semibold">ID</th>
                 <th
@@ -175,8 +171,7 @@ function WorkflowList() {
                     setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
                   }}
                 >
-                  Last Edited On{' '}
-                  {sortField === 'updatedAt' && (sortOrder === 'asc' ? '↑' : '↓')}
+                  Last Edited On {sortField === 'updatedAt' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th className="px-6 py-4 font-semibold">Description</th>
                 <th className="px-6 py-4 font-semibold">Actions</th>
@@ -185,12 +180,10 @@ function WorkflowList() {
             <tbody>
               {filteredWorkflows.map((workflow) => {
                 const isSelected = selectedHistoryWorkflow === workflow.id;
-
                 return (
                   <React.Fragment key={workflow.id}>
                     <tr
-                      className={`${isSelected ? 'bg-[#fefcfb]' : 'bg-white'
-                        } hover:bg-gray-50 rounded-lg`}
+                      className={`${isSelected ? 'bg-[#fefcfb]' : 'bg-white'} hover:bg-gray-50 rounded-lg`}
                     >
                       <td className="px-6 py-4 font-medium text-gray-900">
                         {workflow.name}
@@ -198,19 +191,22 @@ function WorkflowList() {
                       <td className="px-6 py-4 text-gray-500">#{workflow.id}</td>
                       <td className="px-6 py-4 text-gray-500">
                         {workflow.updatedAt
-                          ? `${user?.email} | 
-                            ${new Date(workflow.updatedAt.seconds * 1000).toLocaleTimeString(
-                            'en-IN',
-                            { hour: '2-digit', minute: '2-digit', hour12: false }
-                          )} IST - 
-                            ${new Date(workflow.updatedAt.seconds * 1000)
-                            .toLocaleDateString('en-IN', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                            })
-                            .split('/')
-                            .join('/')}`
+                          ? `${user?.email} | ${new Date(
+                              workflow.updatedAt.seconds * 1000
+                            ).toLocaleTimeString('en-IN', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false,
+                            })} IST - ${new Date(
+                              workflow.updatedAt.seconds * 1000
+                            )
+                              .toLocaleDateString('en-IN', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                              })
+                              .split('/')
+                              .join('/')}`
                           : 'N/A'}
                       </td>
                       <td className="px-6 py-4 text-gray-500">{workflow.description}</td>
@@ -222,7 +218,11 @@ function WorkflowList() {
                         >
                           Execute
                         </button>
-                        <button className="px-3 py-1 bg-gray-200 text-black text-sm rounded-md">
+                        {/* Redirect to WorkflowEdit on click */}
+                        <button
+                          onClick={() => navigate(`/workflows/edit/${workflow.id}`)}
+                          className="px-3 py-1 bg-gray-200 text-black text-sm rounded-md"
+                        >
                           Edit
                         </button>
                         <button
@@ -235,8 +235,6 @@ function WorkflowList() {
                         </button>
                       </td>
                     </tr>
-
-                    {/* Expanded history row if selected */}
                     {isSelected && (
                       <tr>
                         <td colSpan={5} className="px-6 py-4">
@@ -271,7 +269,7 @@ function WorkflowList() {
         </button>
       </div>
 
-      {/* (Optional) Execution Modal for real-time results */}
+      {/* Optional: Execution Modal for real-time results */}
       {(executingWorkflow || executionResults || executionError) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
@@ -280,8 +278,8 @@ function WorkflowList() {
                 {executingWorkflow
                   ? 'Executing Workflow...'
                   : executionError
-                    ? 'Execution Error'
-                    : 'Execution Results'}
+                  ? 'Execution Error'
+                  : 'Execution Results'}
               </h3>
               <button
                 onClick={() => {
@@ -294,30 +292,23 @@ function WorkflowList() {
                 <X size={20} />
               </button>
             </div>
-
             {executingWorkflow && (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
               </div>
             )}
-
             {executionError && <div className="text-red-600 py-4">{executionError}</div>}
-
             {executionResults && (
               <div className="space-y-4">
                 {Array.from(executionResults.entries()).map(([nodeId, result]: [string, any]) => (
                   <div
                     key={nodeId}
-                    className={`p-4 rounded-lg ${result.success ? 'bg-green-50' : 'bg-red-50'
-                      }`}
+                    className={`p-4 rounded-lg ${result.success ? 'bg-green-50' : 'bg-red-50'}`}
                   >
                     <div className="flex justify-between items-start">
                       <div>
                         <h4 className="font-medium">Node ID: {nodeId}</h4>
-                        <p
-                          className={`text-sm ${result.success ? 'text-green-600' : 'text-red-600'
-                            }`}
-                        >
+                        <p className={`text-sm ${result.success ? 'text-green-600' : 'text-red-600'}`}>
                           {result.success ? 'Success' : 'Failed'}
                         </p>
                       </div>

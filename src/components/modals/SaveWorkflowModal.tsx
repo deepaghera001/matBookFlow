@@ -5,15 +5,23 @@ interface SaveWorkflowModalProps {
   onClose: () => void;
   onSave: (name: string, description: string) => void;
   initialName?: string;
+  initialDescription?: string;
 }
 
-const SaveWorkflowModal: React.FC<SaveWorkflowModalProps> = ({ isOpen, onClose, onSave, initialName = "" }) => {
+const SaveWorkflowModal: React.FC<SaveWorkflowModalProps> = ({
+  isOpen,
+  onClose,
+  onSave,
+  initialName = "",
+  initialDescription = ""
+}) => {
   const [name, setName] = useState(initialName);
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(initialDescription);
 
   useEffect(() => {
     setName(initialName);
-  }, [initialName]);
+    setDescription(initialDescription);
+  }, [initialName, initialDescription]);
 
   if (!isOpen) return null;
 
@@ -41,7 +49,7 @@ const SaveWorkflowModal: React.FC<SaveWorkflowModalProps> = ({ isOpen, onClose, 
         <div className="mt-4">
           <label className="block text-sm font-medium text-gray-700">Description</label>
           <textarea
-            placeholder="Write here.."
+            placeholder="Write here..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

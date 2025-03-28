@@ -110,8 +110,8 @@ interface WorkflowNode extends Node {
 const WorkflowEdit: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<WorkflowNode[]>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([]);
   const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
   const [isNodeSelectionModalOpen, setIsNodeSelectionModalOpen] = useState(false);
   const [newNodeType, setNewNodeType] = useState<NodeType | null>(null);
@@ -121,28 +121,36 @@ const WorkflowEdit: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // State for workflow metadata
+  const [workflowName, setWorkflowName] = useState<string>("Untitled");
+  const [workflowDescription, setWorkflowDescription] = useState<string>("");
+
   useEffect(() => {
     loadWorkflow();
   }, [id]);
 
   const loadWorkflow = async () => {
     if (!id) return;
-
     try {
       const workflowDoc = await getDoc(doc(db, 'workflows', id));
       if (!workflowDoc.exists()) {
         setError('Workflow not found');
         return;
       }
-
       const workflowData = workflowDoc.data();
-      setNodes(workflowData.nodes.map((node: WorkflowNode) => ({
-        ...node,
-        data: {
-          ...node.data,
-          onDelete: (nodeId: string) => handleDeleteNodeById(nodeId)
-        }
-      })));
+      // Set workflow metadata from Firestore
+      setWorkflowName(workflowData.name || "Untitled");
+      setWorkflowDescription(workflowData.description || "");
+      // Load nodes and edges
+      setNodes(
+        workflowData.nodes.map((node: WorkflowNode) => ({
+          ...node,
+          data: {
+            ...node.data,
+            onDelete: (nodeId: string) => handleDeleteNodeById(nodeId),
+          },
+        }))
+      );
       setEdges(workflowData.edges);
     } catch (error) {
       console.error('Error loading workflow:', error);
@@ -317,18 +325,25 @@ const WorkflowEdit: React.FC = () => {
         fitView
         attributionPosition="top-right"
       >
-        <SaveOption nodes={nodes} edges={edges} onBack={() => navigate('/workflows')} isEditMode={true} />
+        <SaveOption
+          nodes={nodes}
+          edges={edges}
+          onBack={() => navigate('/workflows')}
+          isEditMode={true}
+          initialName={workflowName}
+          initialDescription={workflowDescription}
+        />
         <Controls />
         <Background variant="dots" gap={12} size={1} />
         <defs>
-          <marker 
-            id="arrow" 
-            viewBox="0 -5 10 10" 
-            refX={5} 
-            refY={0} 
-            orient="auto" 
-            markerWidth={6} 
-            markerHeight={6} 
+          <marker
+            id="arrow"
+            viewBox="0 -5 10 10"
+            refX={5}
+            refY={0}
+            orient="auto"
+            markerWidth={6}
+            markerHeight={6}
             fill="#888"
           >
             <path d="M0,-5 L10,0 L0,5" />
