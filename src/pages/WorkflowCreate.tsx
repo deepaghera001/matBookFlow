@@ -305,7 +305,7 @@ const WorkflowCreate: React.FC = () => {
         attributionPosition="top-right"
       >
         {/* SaveOption handles saving */}
-        <SaveOption nodes={nodes} edges={edges} onBack={() => console.log("Going back...")} />
+        <SaveOption nodes={nodes} edges={edges} onBack={''} />
         <Controls />
         <Background variant="dots" gap={12} size={1} />
         <defs>
