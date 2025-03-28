@@ -97,7 +97,7 @@ const SaveOption: React.FC<SaveOptionProps> = ({
         style={{ pointerEvents: "auto" }} // Ensures clicks are registered
       >
         {/* Go Back Button */}
-        <button onClick={onBack} className="flex items-center text-blue-600 hover:underline">
+        <button onClick={onBack} className="flex items-center text-black-600 underline font-bold">
           <ArrowLeft className="w-4 h-4 mr-1" />
           <span className="text-sm">Go Back</span>
         </button>
