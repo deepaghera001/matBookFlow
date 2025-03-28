@@ -6,6 +6,7 @@ import {
   User
 } from 'firebase/auth';
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { auth } from '../config/firebase';
 
 interface AuthState {
@@ -20,59 +21,67 @@ interface AuthState {
   fetchToken: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  token: null,
-  loading: false,
-  error: null,
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      token: null,
+      loading: false,
+      error: null,
 
-  signIn: async (email, password) => {
-    try {
-      set({ loading: true, error: null });
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const token = await userCredential.user.getIdToken(); // Fetch token
-      set({ user: userCredential.user, token });
-    } catch (error: any) {
-      set({ error: error.message });
-    } finally {
-      set({ loading: false });
+      signIn: async (email, password) => {
+        try {
+          set({ loading: true, error: null });
+          const userCredential = await signInWithEmailAndPassword(auth, email, password);
+          const token = await userCredential.user.getIdToken();
+          set({ user: userCredential.user, token });
+        } catch (error: any) {
+          set({ error: error.message });
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      signUp: async (email, password) => {
+        try {
+          set({ loading: true, error: null });
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+          const token = await userCredential.user.getIdToken();
+          set({ user: userCredential.user, token });
+        } catch (error: any) {
+          set({ error: error.message });
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      signOut: async () => {
+        try {
+          await firebaseSignOut(auth);
+          set({ user: null, token: null });
+        } catch (error: any) {
+          set({ error: error.message });
+        }
+      },
+
+      setUser: (user) => set({ user }),
+
+      fetchToken: async () => {
+        const user = auth.currentUser;
+        if (user) {
+          const token = await user.getIdToken();
+          set({ token });
+        }
+      }
+    }),
+    {
+      name: 'auth-storage', // Key for localStorage
+      getStorage: () => localStorage
     }
-  },
+  )
+);
 
-  signUp: async (email, password) => {
-    try {
-      set({ loading: true, error: null });
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const token = await userCredential.user.getIdToken(); // Fetch token
-      set({ user: userCredential.user, token });
-    } catch (error: any) {
-      set({ error: error.message });
-    } finally {
-      set({ loading: false });
-    }
-  },
-
-  signOut: async () => {
-    try {
-      await firebaseSignOut(auth);
-      set({ user: null, token: null });
-    } catch (error: any) {
-      set({ error: error.message });
-    }
-  },
-
-  setUser: (user) => set({ user }),
-
-  fetchToken: async () => {
-    const user = auth.currentUser;
-    if (user) {
-      const token = await user.getIdToken();
-      set({ token });
-    }
-  }
-}));
-
-// Keep user signed in and fetch token on reload
+// Sync Firebase Auth with Zustand Store
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     const token = await user.getIdToken();
