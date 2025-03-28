@@ -1,21 +1,15 @@
 import React, { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useWorkflowExecutionStore } from '../store/workflowExecutionStore';
-import ReactFlow, {
-  Node,
-  Edge,
-  Background,
-  Controls,
-} from 'reactflow';
+import ReactFlow, { Node, Edge, Background, Controls } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { ArrowLeft } from 'lucide-react';
 
 interface ExecutionResult {
   nodeId: string;
-  type: string;      // e.g. "start", "api", "email", etc.
+  type: string; // e.g. "start", "api", "email", etc.
   success: boolean;
   error?: string;
-  // timestamps, data, etc.
 }
 
 interface Execution {
@@ -23,23 +17,17 @@ interface Execution {
   workflowId: string;
   startTime: string;
   endTime: string;
-  status: 'failed' | 'completed'; // or others if needed
+  status: 'failed' | 'completed';
   results: ExecutionResult[];
 }
 
-function ExecutionFlowPage() {
-  // 1) Get workflowId from route params
-  const { workflowId } = useParams();
+const ExecutionFlowPage: React.FC = () => {
+  const { workflowId, executionIndex } = useParams<{ workflowId: string; executionIndex?: string }>();
   const navigate = useNavigate();
-console.log(workflowId); // Debugging inf
-  // 2) Fetch all executions for this workflow
-  //    This depends on how your store is set up
-  const executions = useWorkflowExecutionStore((state) =>
-    state.getExecutions(workflowId || '')
-  );
-  console.log("executions ::",executions); // Debugging inf
 
-  // If no data, show a simple message
+  // Fetch executions for the given workflowId from your store
+  const executions = useWorkflowExecutionStore((state) => state.getExecutions(workflowId || ''));
+
   if (!executions || executions.length === 0) {
     return (
       <div className="h-screen w-full flex flex-col bg-gray-50">
@@ -59,25 +47,24 @@ console.log(workflowId); // Debugging inf
     );
   }
 
-  // 3) For example, pick the LAST execution in the array
-  const execution: Execution = executions[executions.length - 1];
+  // If an executionIndex is provided, use it; otherwise, use the last one.
+  const index = executionIndex !== undefined ? parseInt(executionIndex, 10) : executions.length - 1;
+  const execution: Execution = executions[index];
 
-  // Decide top-bar label color
   const statusLabel = execution.status === 'failed' ? 'Failed' : 'Passed';
   const statusColor =
     execution.status === 'failed'
       ? 'text-red-600 bg-red-100 border border-red-300'
       : 'text-green-600 bg-green-100 border border-green-300';
 
-  // A helper to style each node based on success/fail
+  // Helper to style each node based on success and node type
   const getNodeStyle = (res: ExecutionResult): React.CSSProperties => {
     const isStartOrEnd = res.type === 'start' || res.type === 'end';
     const success = res.success;
-
     return {
-      background: success ? '#ECFDF5' : '#FEF2F2',       // light green/red
-      border: `2px solid ${success ? '#10B981' : '#EF4444'}`, // green/red border
-      color: success ? '#065F46' : '#B91C1C',            // dark green/red text
+      background: success ? '#ECFDF5' : '#FEF2F2',
+      border: `2px solid ${success ? '#10B981' : '#EF4444'}`,
+      color: success ? '#065F46' : '#B91C1C',
       width: isStartOrEnd ? 70 : 100,
       height: isStartOrEnd ? 70 : 40,
       borderRadius: isStartOrEnd ? '50%' : '8px',
@@ -88,17 +75,13 @@ console.log(workflowId); // Debugging inf
     };
   };
 
-  // 4) Build an array of React Flow nodes from the execution.results
+  // Build nodes array from execution results
   const nodes: Node[] = useMemo(() => {
-    return execution.results.map((res, index) => {
-      // e.g., space them out vertically by 150px
-      const positionY = 50 + index * 150;
-
-      // Human-friendly label
+    return execution.results.map((res, idx) => {
+      const positionY = 50 + idx * 150;
       let labelText = res.type;
       if (res.type === 'start') labelText = 'Start';
       if (res.type === 'end') labelText = 'End';
-
       return {
         id: res.nodeId,
         position: { x: 300, y: positionY },
@@ -106,9 +89,9 @@ console.log(workflowId); // Debugging inf
         style: getNodeStyle(res),
       };
     });
-  }, [execution]);
+  }, [execution.results]);
 
-  // 5) Build edges between consecutive nodes in the array
+  // Build edges between consecutive nodes
   const edges: Edge[] = useMemo(() => {
     const arr: Edge[] = [];
     for (let i = 0; i < execution.results.length - 1; i++) {
@@ -122,11 +105,11 @@ console.log(workflowId); // Debugging inf
       });
     }
     return arr;
-  }, [execution]);
+  }, [execution.results]);
 
   return (
     <div className="h-screen w-full bg-[#FAF8F5] flex flex-col">
-      {/* Top bar */}
+      {/* Top Bar */}
       <div className="flex items-center p-4 gap-4 bg-white shadow-sm">
         <button
           onClick={() => navigate(-1)}
@@ -136,13 +119,12 @@ console.log(workflowId); // Debugging inf
           Go Back
         </button>
         <span className="font-semibold">Workflow: {workflowId}</span>
-        {/* Status label */}
         <span className={`px-2 py-1 text-sm rounded-md ${statusColor}`}>
           {statusLabel}
         </span>
       </div>
 
-      {/* React Flow container */}
+      {/* Flow Container */}
       <div className="flex-1" style={{ minHeight: 0 }}>
         <ReactFlow nodes={nodes} edges={edges} fitView fitViewOptions={{ padding: 0.2 }}>
           <Background variant="dots" gap={12} size={1} color="#E5E7EB" />
@@ -151,6 +133,6 @@ console.log(workflowId); // Debugging inf
       </div>
     </div>
   );
-}
+};
 
 export default ExecutionFlowPage;
