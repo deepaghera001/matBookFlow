@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useWorkflowExecutionStore } from '../store/workflowExecutionStore';
 import { Link2 } from 'lucide-react';
 
@@ -19,7 +20,7 @@ const ExecutionHistoryTimeline: React.FC<ExecutionHistoryTimelineProps> = ({ wor
 
   return (
     <div className="relative border-l border-gray-200 ml-4">
-      {executions.map((execution) => {
+      {executions.map((execution, index) => {
         // Parse date/time
         const startTime = new Date(execution.startTime);
         const timeLabel = startTime.toLocaleTimeString('en-IN', {
@@ -48,15 +49,13 @@ const ExecutionHistoryTimeline: React.FC<ExecutionHistoryTimelineProps> = ({ wor
 
         return (
           <div key={execution.executionId} className="mb-6 ml-6 last:mb-0 relative">
-            {/* The vertical connecting line */}
+            {/* Vertical connecting line */}
             <span className="absolute -left-px top-0 h-full w-0.5 bg-gray-300" />
 
-            {/* The colored bullet */}
-            <div
-              className={`absolute -left-3 w-5 h-5 rounded-full border-2 border-white ${bulletColor}`}
-            />
+            {/* Colored bullet */}
+            <div className={`absolute -left-3 w-5 h-5 rounded-full border-2 border-white ${bulletColor}`} />
 
-            {/* Execution row with tinted background */}
+            {/* Execution row */}
             <div className={`p-4 rounded-md ${rowColor}`}>
               <div className="flex items-center justify-between">
                 {/* Left side: Date/time + status label */}
@@ -66,18 +65,17 @@ const ExecutionHistoryTimeline: React.FC<ExecutionHistoryTimelineProps> = ({ wor
                   </span>
                   <span
                     className={`inline-block px-2 py-1 text-xs rounded-full ${
-                      isPassed
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
+                      isPassed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                     }`}
                   >
                     {statusLabel}
                   </span>
                 </div>
-                {/* Right side: link icon */}
-                <Link2 className="cursor-pointer text-gray-600" size={18} />
+                {/* Right side: Link icon navigates to ExecutionFlowPage with index */}
+                <Link to={`/workflows/executionflow/${workflowId}/${index}`}>
+                  <Link2 className="cursor-pointer text-gray-600" size={18} />
+                </Link>
               </div>
-
               {/* Duration */}
               <div className="mt-1 text-sm text-gray-500">
                 Duration: {durationSec}s
