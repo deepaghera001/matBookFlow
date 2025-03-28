@@ -1,14 +1,15 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
+import React, { useEffect } from 'react';
+import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import { auth } from './config/firebase';
-import { useAuthStore } from './store/authStore';
+import ExecutionFlowPage from './pages/ExecutionFlowPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import WorkflowCreate from './pages/WorkflowCreate';
 import WorkflowList from './pages/WorkflowList';
 import WorkflowView from './pages/WorkflowView';
-import WorkflowResult from './pages/WorkflowResult';
+import { useAuthStore } from './store/authStore';
+import WorkflowEdit from './pages/WorkflowEdit';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const user = useAuthStore((state) => state.user);
@@ -22,7 +23,6 @@ function App() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
     });
-
     return () => unsubscribe();
   }, [setUser]);
 
@@ -32,6 +32,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+
           <Route
             path="/workflows"
             element={
@@ -56,14 +57,37 @@ function App() {
               </PrivateRoute>
             }
           />
+
+          {/* New route: Pass both workflowId and execution index */}
           <Route
-            path="/workflows/:id/result/:executionId"
+            path="/workflows/executionflow/:workflowId/:executionIndex"
             element={
               <PrivateRoute>
-                <WorkflowResult />
+                <ExecutionFlowPage />
               </PrivateRoute>
             }
           />
+
+          {/* Fallback route (if no executionIndex is provided, you can also add a route without it) */}
+          <Route
+            path="/workflows/executionflow/:workflowId"
+            element={
+              <PrivateRoute>
+                <ExecutionFlowPage />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/workflows/edit/:id"
+            element={
+              <PrivateRoute>
+                <WorkflowEdit />
+              </PrivateRoute>
+            }
+          />
+
+
           <Route path="/" element={<Navigate to="/workflows" />} />
         </Routes>
       </div>
