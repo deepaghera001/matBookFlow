@@ -14,7 +14,16 @@ import {
 import { db } from '../config/firebase';
 import { useAuthStore } from '../store/authStore';
 import { IWorkflow } from '../types/workflow';
-import { Star, MoreVertical, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import {
+  Star,
+  Pin,
+  MoreVertical,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import { WorkflowExecutionService } from '../services/workflowExecutionService';
 import ExecutionHistoryTimeline from '../components/ExecutionHistoryTimeline';
 
@@ -33,9 +42,15 @@ function WorkflowList() {
   // Which workflow’s history is expanded
   const [selectedHistoryWorkflow, setSelectedHistoryWorkflow] = useState<string | null>(null);
 
+  // For total count (so we can do numeric pagination)
+  const [totalWorkflows, setTotalWorkflows] = useState(0);
+
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const ITEMS_PER_PAGE = 10;
+
+  // Calculate total pages
+  const totalPages = Math.ceil(totalWorkflows / ITEMS_PER_PAGE);
 
   const executeWorkflow = async (workflowId: string) => {
     setExecutingWorkflow(workflowId);
@@ -64,6 +79,24 @@ function WorkflowList() {
   };
 
   useEffect(() => {
+    if (!user) return;
+
+    // Fetch total number of workflows for the user
+    const fetchTotalWorkflows = async () => {
+      try {
+        const snapshot = await getDocs(
+          query(collection(db, 'workflows'), where('userId', '==', user.uid))
+        );
+        setTotalWorkflows(snapshot.size);
+      } catch (error) {
+        console.error('Error fetching total workflows:', error);
+      }
+    };
+
+    fetchTotalWorkflows();
+  }, [user]);
+
+  useEffect(() => {
     loadWorkflows();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, sortField, sortOrder]);
@@ -82,7 +115,8 @@ function WorkflowList() {
       );
 
       if (page > 1 && workflows.length > 0) {
-        const lastVisible = await getDocs(
+        // we need to skip (page-1)*ITEMS_PER_PAGE docs
+        const skipSnapshot = await getDocs(
           query(
             workflowsRef,
             where('userId', '==', user.uid),
@@ -91,7 +125,7 @@ function WorkflowList() {
           )
         );
 
-        const lastDoc = lastVisible.docs[lastVisible.docs.length - 1];
+        const lastDoc = skipSnapshot.docs[skipSnapshot.docs.length - 1];
         baseQuery = query(
           workflowsRef,
           where('userId', '==', user.uid),
@@ -107,7 +141,10 @@ function WorkflowList() {
         ...doc.data(),
       })) as IWorkflow[];
 
+      // If it's a new page, we replace if page=1, else we append
       setWorkflows((prev) => (page === 1 ? workflowData : [...prev, ...workflowData]));
+
+      // If we got fewer than ITEMS_PER_PAGE, no more data
       setHasMore(workflowData.length === ITEMS_PER_PAGE);
     } catch (error) {
       console.error('Error loading workflows:', error);
@@ -183,11 +220,11 @@ function WorkflowList() {
                 return (
                   <React.Fragment key={workflow.id}>
                     <tr
-                      className={`${isSelected ? 'bg-[#fefcfb]' : 'bg-white'} hover:bg-gray-50 rounded-lg`}
+                      className={`${
+                        isSelected ? 'bg-[#fefcfb]' : 'bg-white'
+                      } hover:bg-gray-50 rounded-lg`}
                     >
-                      <td className="px-6 py-4 font-medium text-gray-900">
-                        {workflow.name}
-                      </td>
+                      <td className="px-6 py-4 font-medium text-gray-900">{workflow.name}</td>
                       <td className="px-6 py-4 text-gray-500">#{workflow.id}</td>
                       <td className="px-6 py-4 text-gray-500">
                         {workflow.updatedAt
@@ -211,27 +248,32 @@ function WorkflowList() {
                       </td>
                       <td className="px-6 py-4 text-gray-500">{workflow.description}</td>
                       <td className="px-6 py-4 flex items-center gap-4">
-                        <Star className="text-yellow-500 cursor-pointer" size={18} />
+                        {/* <Star className="text-yellow-500 cursor-pointer" size={18} /> */}
+                        <Pin className="text-gray-500 cursor-pointer" size={18} />
                         <button
                           onClick={() => executeWorkflow(workflow.id)}
-                          className="px-3 py-1 bg-black text-white text-sm rounded-md shadow-md"
+                          className="px-3 py-2 bg-white text-black text-sm border border-gray-300 rounded-md"
                         >
                           Execute
                         </button>
+
                         {/* Redirect to WorkflowEdit on click */}
                         <button
                           onClick={() => navigate(`/workflows/edit/${workflow.id}`)}
-                          className="px-3 py-1 bg-gray-200 text-black text-sm rounded-md"
+                          className="px-3 py-2 bg-white text-black text-sm border border-gray-300 rounded-md"
                         >
                           Edit
                         </button>
+
+                        {/* Toggle history: Show down arrow if collapsed, up arrow if expanded */}
                         <button
                           onClick={() =>
                             setSelectedHistoryWorkflow(isSelected ? null : workflow.id)
                           }
-                          className="text-gray-600 hover:text-gray-800"
+                          className="text-gray-600 hover:text-gray-800 flex items-center gap-1"
                         >
                           <MoreVertical size={18} />
+                          {isSelected ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                         </button>
                       </td>
                     </tr>
@@ -250,24 +292,40 @@ function WorkflowList() {
         </div>
       )}
 
-      {/* Pagination */}
-      <div className="flex justify-between items-center mt-6">
-        <button
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
-          disabled={page === 1}
-          className="px-4 py-2 flex items-center gap-2 text-gray-600 disabled:text-gray-400"
-        >
-          <ChevronLeft size={16} /> Previous
-        </button>
-        <span className="text-gray-600">Page {page}</span>
-        <button
-          onClick={() => setPage((p) => p + 1)}
-          disabled={!hasMore}
-          className="px-4 py-2 flex items-center gap-2 text-gray-600 disabled:text-gray-400"
-        >
-          Next <ChevronRight size={16} />
-        </button>
-      </div>
+      {/* Numeric Pagination */}
+      {!loading && totalPages > 1 && (
+        <div className="flex items-center justify-center space-x-2 mt-6">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="p-2 text-gray-600 disabled:text-gray-400"
+          >
+            <ChevronLeft size={16} />
+          </button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
+            <button
+              key={pageNumber}
+              onClick={() => setPage(pageNumber)}
+              className={`px-3 py-2 rounded-md border ${
+                pageNumber === page
+                  ? 'bg-black text-white border-black'
+                  : 'bg-white text-black border-gray-300'
+              }`}
+            >
+              {pageNumber}
+            </button>
+          ))}
+
+          <button
+            onClick={() => setPage((p) => (hasMore ? p + 1 : p))}
+            disabled={!hasMore}
+            className="p-2 text-gray-600 disabled:text-gray-400"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Optional: Execution Modal for real-time results */}
       {(executingWorkflow || executionResults || executionError) && (
@@ -303,12 +361,18 @@ function WorkflowList() {
                 {Array.from(executionResults.entries()).map(([nodeId, result]: [string, any]) => (
                   <div
                     key={nodeId}
-                    className={`p-4 rounded-lg ${result.success ? 'bg-green-50' : 'bg-red-50'}`}
+                    className={`p-4 rounded-lg ${
+                      result.success ? 'bg-green-50' : 'bg-red-50'
+                    }`}
                   >
                     <div className="flex justify-between items-start">
                       <div>
                         <h4 className="font-medium">Node ID: {nodeId}</h4>
-                        <p className={`text-sm ${result.success ? 'text-green-600' : 'text-red-600'}`}>
+                        <p
+                          className={`text-sm ${
+                            result.success ? 'text-green-600' : 'text-red-600'
+                          }`}
+                        >
                           {result.success ? 'Success' : 'Failed'}
                         </p>
                       </div>
