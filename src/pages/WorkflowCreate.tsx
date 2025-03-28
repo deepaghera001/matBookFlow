@@ -21,6 +21,7 @@ import StartNode from '../components/nodes/initialNodes/StartNode';
 import TextNode from '../components/nodes/TextNode';
 import NodeSelectionModal from '../components/NodeSelectionModal';
 import SaveOption from '../components/ui/SaveOption';
+import { useNavigate } from 'react-router-dom';
 
 interface EmailNodeData {
   email?: string;
@@ -134,7 +135,7 @@ const WorkflowCreate: React.FC = () => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [isNodeConfigModalOpen, setIsNodeConfigModalOpen] = useState(false);
   const [selectedNodeConfig, setSelectedNodeConfig] = useState<WorkflowNode | null>(null);
-
+  const navigate = useNavigate();
   // Connect new edges
   const onConnect: OnConnect = useCallback((params) => {
     setEdges((eds) => addEdge({ ...params, type: 'plusicon' }, eds));
@@ -305,7 +306,7 @@ const WorkflowCreate: React.FC = () => {
         attributionPosition="top-right"
       >
         {/* SaveOption handles saving */}
-        <SaveOption nodes={nodes} edges={edges} onBack={''} />
+        <SaveOption nodes={nodes} edges={edges}  onBack={() => navigate('/workflows')} />
         <Controls />
         <Background variant="dots" gap={12} size={1} />
         <defs>

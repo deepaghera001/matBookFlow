@@ -1,9 +1,17 @@
 import React, { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useWorkflowExecutionStore } from '../store/workflowExecutionStore';
-import ReactFlow, { Node, Edge, Background, Controls } from 'reactflow';
+import ReactFlow, {
+  Node,
+  Edge,
+  Background,
+  Controls,
+  Position,
+} from 'reactflow';
 import 'reactflow/dist/style.css';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, AlertCircle, Settings2, Mail } from 'lucide-react';
+import SaveOptionBar from '../components/SaveOptionBar';
+// ^-- import icons as needed (check, exclamation, gear, mail, etc.)
 
 interface ExecutionResult {
   nodeId: string;
@@ -22,11 +30,16 @@ interface Execution {
 }
 
 const ExecutionFlowPage: React.FC = () => {
-  const { workflowId, executionIndex } = useParams<{ workflowId: string; executionIndex?: string }>();
+  const { workflowId, executionIndex } = useParams<{
+    workflowId: string;
+    executionIndex?: string;
+  }>();
   const navigate = useNavigate();
 
   // Fetch executions for the given workflowId from your store
-  const executions = useWorkflowExecutionStore((state) => state.getExecutions(workflowId || ''));
+  const executions = useWorkflowExecutionStore((state) =>
+    state.getExecutions(workflowId || '')
+  );
 
   if (!executions || executions.length === 0) {
     return (
@@ -48,7 +61,10 @@ const ExecutionFlowPage: React.FC = () => {
   }
 
   // If an executionIndex is provided, use it; otherwise, use the last one.
-  const index = executionIndex !== undefined ? parseInt(executionIndex, 10) : executions.length - 1;
+  const index =
+    executionIndex !== undefined
+      ? parseInt(executionIndex, 10)
+      : executions.length - 1;
   const execution: Execution = executions[index];
 
   const statusLabel = execution.status === 'failed' ? 'Failed' : 'Passed';
@@ -57,21 +73,118 @@ const ExecutionFlowPage: React.FC = () => {
       ? 'text-red-600 bg-red-100 border border-red-300'
       : 'text-green-600 bg-green-100 border border-green-300';
 
-  // Helper to style each node based on success and node type
+  /**
+   * Returns a small icon indicating success or failure, plus an icon
+   * relevant to the node type (gear for API, mail for Email, etc.).
+   */
+  const getNodeIcon = (type: string, success: boolean) => {
+    // Base icon for the node type
+    let BaseIcon = Settings2; // default
+    if (type === 'email') BaseIcon = Mail;
+    if (type === 'api') BaseIcon = Settings2;
+    // ... add more if you have other node types
+
+    // Success/failure overlay icon
+    const StatusIcon = success ? CheckCircle2 : AlertCircle;
+    const statusColor = success ? '#10B981' : '#EF4444';
+
+    // For start/end, we might not show an overlay icon
+    if (type === 'start' || type === 'end') {
+      return null;
+    }
+
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <BaseIcon size={16} color="#555" />
+        <StatusIcon size={16} color={statusColor} />
+      </div>
+    );
+  };
+
+  /**
+   * Returns a custom label component that includes the text and icons
+   * for each node.
+   */
+  const getNodeLabel = (res: ExecutionResult): JSX.Element => {
+    let labelText = res.type;
+    if (res.type === 'start') labelText = 'Start';
+    if (res.type === 'end') labelText = 'End';
+    if (res.type === 'api') labelText = 'API Call';
+    if (res.type === 'email') labelText = 'Email';
+
+    return (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          justifyContent: 'center',
+        }}
+      >
+        <span>{labelText}</span>
+        {getNodeIcon(res.type, res.success)}
+      </div>
+    );
+  };
+
+  /**
+   * Styles each node to match the screenshot:
+   * - Start node: green circle, white text
+   * - End node: red circle, white text
+   * - Intermediate nodes: white rectangle with gray border, black text
+   */
   const getNodeStyle = (res: ExecutionResult): React.CSSProperties => {
-    const isStartOrEnd = res.type === 'start' || res.type === 'end';
+    const isStart = res.type === 'start';
+    const isEnd = res.type === 'end';
     const success = res.success;
+
+    // START node style
+    if (isStart) {
+      return {
+        background: '#45B36B',
+        color: '#fff',
+        borderRadius: '50%',
+        width: 60,
+        height: 60,
+        border: '1px solid #45B36B',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 500,
+      };
+    }
+
+    // END node style
+    if (isEnd) {
+      return {
+        background: '#EB5757',
+        color: '#fff',
+        borderRadius: '50%',
+        width: 60,
+        height: 60,
+        border: '1px solid #EB5757',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 500,
+      };
+    }
+
+    // INTERMEDIATE nodes (API, Email, etc.)
+    // If failure, border is red; if success, border is gray
+    const borderColor = success ? '#A3A3A3' : '#EF4444';
+
     return {
-      background: success ? '#ECFDF5' : '#FEF2F2',
-      border: `2px solid ${success ? '#10B981' : '#EF4444'}`,
-      color: success ? '#065F46' : '#B91C1C',
-      width: isStartOrEnd ? 70 : 100,
-      height: isStartOrEnd ? 70 : 40,
-      borderRadius: isStartOrEnd ? '50%' : '8px',
+      background: '#fff',
+      color: '#333',
+      borderRadius: 8,
+      width: 120,
+      height: 40,
+      border: `1px solid ${borderColor}`,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontWeight: 500,
+      fontWeight: 400,
     };
   };
 
@@ -79,14 +192,15 @@ const ExecutionFlowPage: React.FC = () => {
   const nodes: Node[] = useMemo(() => {
     return execution.results.map((res, idx) => {
       const positionY = 50 + idx * 150;
-      let labelText = res.type;
-      if (res.type === 'start') labelText = 'Start';
-      if (res.type === 'end') labelText = 'End';
+
       return {
         id: res.nodeId,
         position: { x: 300, y: positionY },
-        data: { label: labelText },
+        data: { label: getNodeLabel(res) },
         style: getNodeStyle(res),
+        // We can place the label in the center
+        sourcePosition: Position.Bottom,
+        targetPosition: Position.Top,
       };
     });
   }, [execution.results]);
@@ -101,16 +215,24 @@ const ExecutionFlowPage: React.FC = () => {
         id: `edge-${currentNode.nodeId}-${nextNode.nodeId}`,
         source: currentNode.nodeId,
         target: nextNode.nodeId,
-        type: 'smoothstep',
+        type: 'smoothstep', // or 'default'
+        markerEnd: {
+          type: 'arrowclosed',
+        },
+        style: {
+          stroke: '#999',
+          strokeWidth: 1.5,
+        },
       });
     }
     return arr;
   }, [execution.results]);
 
   return (
-    <div className="h-screen w-full bg-[#FAF8F5] flex flex-col">
+    <div className="h-screen w-full flex flex-col" style={{ background: '#F9F5F0' }}>
       {/* Top Bar */}
-      <div className="flex items-center p-4 gap-4 bg-white shadow-sm">
+      <SaveOptionBar initialTitle={workflowId} onBack={() => navigate(-1)} status={execution.status}></SaveOptionBar>
+      {/* <div className="flex items-center justify-start p-4 gap-4 bg-white shadow-sm">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 px-3 py-1 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
@@ -118,16 +240,28 @@ const ExecutionFlowPage: React.FC = () => {
           <ArrowLeft size={16} />
           Go Back
         </button>
-        <span className="font-semibold">Workflow: {workflowId}</span>
+        <span className="text-gray-800 font-medium">Workflow: {workflowId}</span>
         <span className={`px-2 py-1 text-sm rounded-md ${statusColor}`}>
           {statusLabel}
         </span>
-      </div>
+      </div> */}
 
       {/* Flow Container */}
       <div className="flex-1" style={{ minHeight: 0 }}>
-        <ReactFlow nodes={nodes} edges={edges} fitView fitViewOptions={{ padding: 0.2 }}>
-          <Background variant="dots" gap={12} size={1} color="#E5E7EB" />
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          fitView
+          fitViewOptions={{ padding: 0.2 }}
+        >
+          {/* Dotted background, close to the screenshot style */}
+          <Background
+            variant="dots"
+            gap={20}
+            size={1}
+            color="#E4E0DA" // a subtle gray/beige
+          />
+          {/* Zoom/Pan controls in bottom-right */}
           <Controls />
         </ReactFlow>
       </div>
