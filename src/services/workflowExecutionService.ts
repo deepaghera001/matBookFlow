@@ -133,6 +133,13 @@ export class WorkflowExecutionService {
   }
 
   private executeTextNode(node: NodeData, parentData?: any): ExecutionResult {
+    if (!node.data || typeof node.data.text !== 'string') {
+      return {
+        success: false,
+        data: null,
+        error: 'Invalid text node data: text property is required and must be a string'
+      };
+    }
     const text = node.data.text;
     const processedText = text.includes('{{parentData}}') && parentData
       ? text.replace('{{parentData}}', typeof parentData === 'string' ? parentData : JSON.stringify(parentData))

@@ -9,6 +9,7 @@ import WorkflowCreate from './pages/WorkflowCreate';
 import WorkflowList from './pages/WorkflowList';
 import WorkflowView from './pages/WorkflowView';
 import { useAuthStore } from './store/authStore';
+import WorkflowEdit from './pages/WorkflowEdit';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const user = useAuthStore((state) => state.user);
@@ -76,6 +77,16 @@ function App() {
               </PrivateRoute>
             }
           />
+
+          <Route
+            path="/workflows/edit/:id"
+            element={
+              <PrivateRoute>
+                <WorkflowEdit />
+              </PrivateRoute>
+            }
+          />
+
 
           <Route path="/" element={<Navigate to="/workflows" />} />
         </Routes>
