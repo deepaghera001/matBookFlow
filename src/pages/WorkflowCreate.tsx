@@ -151,6 +151,12 @@ const WorkflowCreate: React.FC = () => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [isNodeConfigModalOpen, setIsNodeConfigModalOpen] = useState(false);
   const [selectedNodeConfig, setSelectedNodeConfig] = useState<WorkflowNode | null>(null);
+  const [pendingNodeCreation, setPendingNodeCreation] = useState<{
+    type: NodeType;
+    sourceNode: WorkflowNode;
+    targetNode: WorkflowNode;
+    edge: Edge;
+  } | null>(null);
   const navigate = useNavigate();
 
   const ITEMS_VERTICAL_SPACING = 100;
@@ -175,66 +181,32 @@ const WorkflowCreate: React.FC = () => {
         const targetNode = nodes.find((node) => node.id === selectedEdge.target);
 
         if (sourceNode && targetNode) {
-          const newId = uuidv4();
-          const newPosition: XYPosition = {
-            x: (sourceNode.position.x + targetNode.position.x) / 2,
-            y: (sourceNode.position.y + targetNode.position.y) / 2,
-          };
-
-          const newNode: WorkflowNode = {
-            id: newId,
+          setPendingNodeCreation({
             type,
-            position: newPosition,
+            sourceNode,
+            targetNode,
+            edge: selectedEdge
+          });
+          
+          const newNode: WorkflowNode = {
+            id: 'temp',
+            type,
+            position: {
+              x: (sourceNode.position.x + targetNode.position.x) / 2,
+              y: (sourceNode.position.y + targetNode.position.y) / 2,
+            },
             data: {
               label: `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
-              onDelete: (nodeId: string, event: React.MouseEvent) => handleDeleteNodeById(nodeId),
             },
           };
 
-          // Shift nodes below
-          const updatedNodes = nodes.map((node) => {
-            if (node.id !== 'start' && node.id !== 'end' && node.position.y > newPosition.y) {
-              return {
-                ...node,
-                position: {
-                  ...node.position,
-                  y: node.position.y + ITEMS_VERTICAL_SPACING,
-                },
-              };
-            }
-            return node;
-          });
-
-          setNodes([...updatedNodes, newNode]);
-
-          // Replace the existing edge with two new edges
-          setEdges((eds) =>
-            eds
-              .filter((e) => e.id !== selectedEdge.id)
-              .concat(
-                {
-                  id: `e-${selectedEdge.source}-${newId}`,
-                  source: selectedEdge.source,
-                  target: newId,
-                  type: 'plusicon',
-                },
-                {
-                  id: `e-${newId}-${selectedEdge.target}`,
-                  source: newId,
-                  target: selectedEdge.target,
-                  type: 'plusicon',
-                }
-              )
-          );
-
-          // Optionally open config
           setSelectedNodeConfig(newNode);
           setIsNodeConfigModalOpen(true);
           setSelectedEdge(null);
         }
       }
     },
-    [nodes, setNodes, setEdges, selectedEdge]
+    [nodes, selectedEdge]
   );
 
   // Delete node by id with edge reconnection if applicable
@@ -298,6 +270,7 @@ const WorkflowCreate: React.FC = () => {
   const handleCloseNodeConfigModal = () => {
     setIsNodeConfigModalOpen(false);
     setSelectedNodeConfig(null);
+    setPendingNodeCreation(null);
   };
 
   const handleNodeConfigChange = useCallback(
@@ -311,16 +284,71 @@ const WorkflowCreate: React.FC = () => {
   );
 
   const handleSaveNodeConfig = useCallback(() => {
-    setNodes((nds) =>
-      nds.map((node) =>
-        node.id === selectedNodeConfig?.id
-          ? { ...node, data: selectedNodeConfig.data }
-          : node
-      )
-    );
+    if (pendingNodeCreation) {
+      const newId = uuidv4();
+      const newPosition: XYPosition = {
+        x: (pendingNodeCreation.sourceNode.position.x + pendingNodeCreation.targetNode.position.x) / 2,
+        y: (pendingNodeCreation.sourceNode.position.y + pendingNodeCreation.targetNode.position.y) / 2,
+      };
+
+      const newNode: WorkflowNode = {
+        id: newId,
+        type: pendingNodeCreation.type,
+        position: newPosition,
+        data: {
+          ...selectedNodeConfig?.data,
+          onDelete: (nodeId: string, event: React.MouseEvent) => handleDeleteNodeById(nodeId),
+        },
+      };
+
+      // Shift nodes below
+      const updatedNodes = nodes.map((node) => {
+        if (node.id !== 'start' && node.id !== 'end' && node.position.y > newPosition.y) {
+          return {
+            ...node,
+            position: {
+              ...node.position,
+              y: node.position.y + ITEMS_VERTICAL_SPACING,
+            },
+          };
+        }
+        return node;
+      });
+
+      setNodes([...updatedNodes, newNode]);
+
+      // Replace the existing edge with two new edges
+      setEdges((eds) =>
+        eds
+          .filter((e) => e.id !== pendingNodeCreation.edge.id)
+          .concat(
+            {
+              id: `e-${pendingNodeCreation.edge.source}-${newId}`,
+              source: pendingNodeCreation.edge.source,
+              target: newId,
+              type: 'plusicon',
+            },
+            {
+              id: `e-${newId}-${pendingNodeCreation.edge.target}`,
+              source: newId,
+              target: pendingNodeCreation.edge.target,
+              type: 'plusicon',
+            }
+          )
+      );
+    } else {
+      setNodes((nds) =>
+        nds.map((node) =>
+          node.id === selectedNodeConfig?.id
+            ? { ...node, data: selectedNodeConfig.data }
+            : node
+        )
+      );
+    }
     setIsNodeConfigModalOpen(false);
     setSelectedNodeConfig(null);
-  }, [setNodes, selectedNodeConfig]);
+    setPendingNodeCreation(null);
+  }, [setNodes, selectedNodeConfig, pendingNodeCreation, nodes]);
 
   const onNodeDoubleClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
